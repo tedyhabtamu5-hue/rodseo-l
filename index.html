@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Rodseo L - your AI texts you first</title>
+<meta name="description" content="Rodseo L makes Claude, ChatGPT or Gemini text you first, at times you choose.">
+<link rel="icon" href="assets/favicon.png">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#0b0b0c">
+<link rel="apple-touch-icon" href="assets/icon-192.png">
+<style>
+:root{--bg:#f5f5f6;--panel:#fff;--ink:#0b0b0c;--mute:#6a6d73;--line:#e1e2e5;--ai:#eceef1;--me:#0b0b0c;--meink:#fff;--acc:#2540ff;--err:#c4271b;--logo:none}
+@media(prefers-color-scheme:dark){:root{--bg:#0a0a0b;--panel:#131315;--ink:#f2f2f3;--mute:#9a9da4;--line:#26272b;--ai:#1d1e22;--me:#f2f2f3;--meink:#0b0b0c;--acc:#7f93ff;--err:#ff8b80;--logo:invert(1)}}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--ink);font:16px/1.5 Inter,"SF Pro Text","Segoe UI Variable Text","Segoe UI",system-ui,sans-serif;-webkit-font-smoothing:antialiased;overscroll-behavior:none}
+.app{height:100%;max-width:560px;margin:0 auto;display:flex;flex-direction:column;padding-top:env(safe-area-inset-top)}
+header{display:flex;align-items:center;gap:10px;padding:12px 16px}
+.logo{width:34px;height:34px;filter:var(--logo)}
+.word{font-size:1.4rem;font-weight:800;letter-spacing:-.04em;display:flex;align-items:center;gap:7px}
+.word i{font-style:normal;background:var(--ink);color:var(--bg);padding:0 .45em;line-height:1.2;clip-path:polygon(24% 0,100% 0,100% 76%,76% 100%,0 100%,0 24%)}
+.pill{margin-left:auto;display:flex;align-items:center;gap:7px;padding:5px 11px;border:1px solid var(--line);border-radius:99px;background:var(--panel);font-size:.82rem;color:var(--mute)}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--mute)}
+.live{color:var(--ink)}.live .dot{background:var(--acc);box-shadow:0 0 0 4px color-mix(in srgb,var(--acc) 22%,transparent)}
+#status{margin:0;padding:0 16px 6px;font-size:.88rem;color:var(--mute)}#status:empty{display:none}#status.err{color:var(--err)}
+main{flex:1;min-height:0;display:flex;flex-direction:column}
+.view{flex:1;min-height:0;display:flex;flex-direction:column;padding:0 16px}.view[hidden]{display:none}
+#log{flex:1;min-height:0;overflow-y:auto;display:flex;flex-direction:column;gap:8px;padding:4px 0 10px}
+.msg{max-width:84%;padding:10px 15px;white-space:pre-wrap;overflow-wrap:anywhere}
+.msg.assistant{align-self:flex-start;background:var(--ai);clip-path:polygon(12px 0,100% 0,100% 100%,0 100%,0 12px);border-radius:0 18px 18px 0}
+.msg.user{align-self:flex-end;background:var(--me);color:var(--meink);clip-path:polygon(0 0,100% 0,100% calc(100% - 12px),calc(100% - 12px) 100%,0 100%);border-radius:18px 0 0 18px}
+.msg small{display:block;opacity:.55;font-size:.72rem;margin-top:3px}
+.typing{opacity:.6}
+.hero{margin:auto 0;padding:8px 4px}
+.hero h3{margin:0 0 14px;font-size:clamp(2.2rem,11vw,3.2rem);line-height:1;font-weight:800;letter-spacing:-.045em}
+.hero ol{margin:0;padding-left:1.2em;color:var(--mute)}
+form{display:flex;gap:8px;padding:8px 0 12px}
+input,select,textarea,button{font:inherit;color:inherit}
+input,select,textarea{width:100%;padding:11px 12px;border:1px solid var(--line);border-radius:12px;background:var(--panel)}
+textarea{resize:vertical;min-height:64px}
+button{padding:11px 16px;border-radius:12px;border:1px solid var(--line);background:var(--panel);cursor:pointer;white-space:nowrap}
+button.main{background:var(--ink);border-color:var(--ink);color:var(--bg);font-weight:650}
+button:disabled{opacity:.45}
+:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+#setup{overflow-y:auto;padding-bottom:20px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:16px;margin-bottom:14px}
+h2{margin:0 0 4px;font-size:1.05rem}
+label{display:block;margin:14px 0 5px;font-weight:600;font-size:.9rem}
+.hint{font-size:.82rem;color:var(--mute);margin:6px 0 0}.hint a{color:var(--acc)}
+.key{position:relative}.key button{position:absolute;right:5px;top:5px;padding:6px 10px;font-size:.8rem}
+.slot{display:grid;grid-template-columns:auto 1fr auto;gap:8px;align-items:start;margin-top:10px}
+.slot input[type=time]{width:auto}
+.slot button{padding:9px 13px}
+.row{display:flex;gap:8px;margin-top:14px}.row .main{flex:1}
+#next,#used{font-size:.88rem;color:var(--mute);margin:10px 0 0}
+details{margin-top:14px;font-size:.9rem;color:var(--mute)}summary{cursor:pointer;color:var(--ink);font-weight:600}
+.links{display:flex;gap:16px;flex-wrap:wrap;margin-top:12px}
+.links button{border:0;background:none;padding:0;color:var(--mute);font-size:.84rem;text-decoration:underline}
+footer{font-size:.8rem;color:var(--mute);display:grid;gap:8px;padding:6px 2px}footer p{margin:0}footer b{color:var(--ink)}
+nav{display:grid;grid-template-columns:1fr 1fr;border-top:1px solid var(--line);background:var(--panel);padding-bottom:env(safe-area-inset-bottom)}
+nav button{border:0;border-radius:0;background:none;padding:14px;color:var(--mute);font-weight:600;border-top:2px solid transparent;margin-top:-1px}
+nav button.on{color:var(--ink);border-top-color:var(--acc)}
+#tos{position:fixed;inset:0;max-width:560px;margin:0 auto;background:var(--bg);z-index:9;display:flex;flex-direction:column;padding:max(16px,env(safe-area-inset-top)) 16px max(16px,env(safe-area-inset-bottom))}
+#tos[hidden]{display:none}
+.terms{flex:1;overflow-y:auto;font-size:.92rem;color:var(--mute)}.terms h2{color:var(--ink);font-size:1.4rem;margin:6px 0 2px}.terms b{color:var(--ink)}.terms li{margin:7px 0}
+.agree{display:flex;gap:10px;align-items:flex-start;margin:12px 0;font-size:.92rem}.agree input{width:22px;height:22px;margin:0;flex:none}
+@media(prefers-reduced-motion:no-preference){.typing{animation:p 1.2s ease-in-out infinite}@keyframes p{50%{opacity:.25}}}
+</style>
+</head>
+<body>
+<div class="app">
+<header>
+  <img class="logo" src="assets/logo.png" alt="">
+  <span class="word">Rodseo <i>L</i></span>
+  <div class="pill" id="pill"><span class="dot"></span><span id="pilltxt">Paused</span></div>
+</header>
+<p id="status" role="status"></p>
+<main>
+  <section class="view" id="v-chat" aria-label="Chat">
+    <div id="log" aria-live="polite"></div>
+    <form id="reply"><input id="text" placeholder="Reply…" autocomplete="off" aria-label="Your reply"><button class="main">Send</button></form>
+  </section>
+  <section class="view" id="setup" aria-label="Setup" hidden>
+    <div class="card">
+      <h2>Connect your AI</h2>
+      <label for="prov">AI</label>
+      <select id="prov"><option value="claude">Claude (Anthropic)</option><option value="openai">ChatGPT (OpenAI)</option><option value="gemini">Gemini (Google)</option></select>
+      <label for="key">API key</label>
+      <div class="key"><input id="key" type="password" autocomplete="off" spellcheck="false" placeholder="Paste your key"><button type="button" id="eye">Show</button></div>
+      <p class="hint" id="keyhint"></p>
+      <details><summary>Advanced: choose a model</summary>
+        <label for="model">Model</label><input id="model" list="models" spellcheck="false">
+        <datalist id="models"><option value="claude-haiku-4-5-20251001"><option value="claude-sonnet-5-5"><option value="gpt-4o-mini"><option value="gpt-4o"><option value="gemini-2.5-flash"><option value="gemini-2.5-pro"></datalist>
+      </details>
+    </div>
+    <div class="card">
+      <h2>When should your AI text first?</h2>
+      <p class="hint">Set up to 3 times a day. At each time, the AI starts the chat and says what you write.</p>
+      <div id="slots"></div>
+      <div class="row"><button type="button" id="add">Add a time</button></div>
+      <p id="used"></p><p id="next"></p>
+      <div class="row"><button class="main" id="toggle" type="button">Start</button></div>
+      <p class="hint">Keep the app open for texts to arrive. If your phone was asleep, a missed text arrives when you open the app (within 3 hours of its time).</p>
+    </div>
+    <footer>
+      <p><b>Rodseo L</b> - developed by <b>Yosef Habtamu</b>. &copy; 2026 Yosef Habtamu. All rights reserved.</p>
+      <p>Rodseo L uses third-party services. Texts are written by the AI service you choose (Anthropic's Claude, OpenAI's ChatGPT or Google's Gemini) with your own API key, and that provider's terms, pricing and privacy policy apply. Rodseo L is independent software, not affiliated with or endorsed by Anthropic, OpenAI or Google. Claude is a trademark of Anthropic. ChatGPT and OpenAI are trademarks of OpenAI. Gemini is a trademark of Google LLC.</p>
+      <p>Your key, times and chat stay on this phone and go only to the AI service you picked. Rodseo L has no servers.</p>
+      <div class="links"><button type="button" id="notif">Turn on notifications</button><button type="button" id="terms">Terms of Service</button><button type="button" id="clear">Clear chat</button><button type="button" id="wipe">Remove my key</button></div>
+    </footer>
+  </section>
+</main>
+<nav><button id="t-chat" class="on">Chat</button><button id="t-setup">Setup</button></nav>
+</div>
+
+<div id="tos" hidden>
+  <div class="terms">
+    <h2>Terms of Service</h2><p>Last updated: October 2, 2026. Please read before using Rodseo L.</p>
+    <ol>
+      <li><b>What this is.</b> Rodseo L is a free tool by Yosef Habtamu ("the Developer"). It asks an AI service you choose to start a chat with you at times you set.</li>
+      <li><b>AI content is not the Developer's responsibility.</b> Every message is created by a third-party AI (Anthropic, OpenAI or Google). The Developer does not write, review, control or guarantee it. AI can be wrong, offensive or unsuitable. The Developer is not responsible for anything the AI says or for anything you do or decide because of it.</li>
+      <li><b>Not advice.</b> Messages are not medical, legal, financial, mental-health or other professional advice. Do not use Rodseo L in an emergency.</li>
+      <li><b>Your key and costs.</b> You use your own API key. You are responsible for keeping it secret and for any charges, limits or account actions from your AI provider. Their terms and privacy policy apply.</li>
+      <li><b>Daily limit.</b> The AI can start a chat up to 3 times a day.</li>
+      <li><b>Privacy.</b> Your key, times and chat are stored on your phone. They are sent only to the AI service you pick. The Developer does not receive them.</li>
+      <li><b>Use responsibly.</b> Follow the law and your AI provider's rules. You must be old enough to use your AI provider's service.</li>
+      <li><b>No warranty.</b> Rodseo L is provided "as is" and "as available", and may stop working or change at any time. To the fullest extent allowed by law, the Developer is not liable for any loss or harm from using it.</li>
+      <li><b>Changes.</b> These terms may change. Continuing to use Rodseo L means you accept the updated terms.</li>
+    </ol>
+  </div>
+  <div id="tosact"><label class="agree"><input type="checkbox" id="agree"><span>I have read and agree to the Terms of Service.</span></label><button class="main" id="ok" style="width:100%" disabled>Agree and continue</button></div>
+  <button id="tosclose" style="width:100%" hidden>Close</button>
+</div>
+
+<script>
+const $=i=>document.getElementById(i);
+const TV='1',MAX=3,DEF={claude:'claude-haiku-4-5-20251001',openai:'gpt-4o-mini',gemini:'gemini-2.5-flash'},NAME={claude:'Claude',openai:'ChatGPT',gemini:'Gemini'};
+let S={provider:'claude',key:'',model:'',running:false,chat:[],tos:'',slots:[{id:1,t:'08:00',m:'Check in on me and ask how my day is going.'}],day:{d:'',n:0,done:{}}};
+try{Object.assign(S,JSON.parse(localStorage.getItem('rodseol')||'{}'))}catch(e){}
+const save=()=>{try{localStorage.setItem('rodseol',JSON.stringify(S))}catch(e){}};
+let busy=false;
+const today=()=>{const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')};
+const roll=()=>{if(S.day.d!==today()){S.day={d:today(),n:0,done:{}};save()}};
+const valid=t=>/^\d\d:\d\d$/.test(t||''),toM=t=>{const [h,m]=t.split(':').map(Number);return h*60+m};
+const fmt=t=>new Date(2000,0,1,Math.floor(toM(t)/60),toM(t)%60).toLocaleTimeString([],{hour:'numeric',minute:'2-digit'});
+function status(t,err){const s=$('status');s.textContent=t;s.className=err?'err':''}
+function show(v){$('v-chat').hidden=v!=='chat';$('setup').hidden=v!=='setup';$('t-chat').className=v==='chat'?'on':'';$('t-setup').className=v==='setup'?'on':''}
+function read(){S.provider=$('prov').value;S.key=$('key').value.trim();S.model=$('model').value.trim()||DEF[S.provider];save()}
+function hint(){
+  const p=$('prov').value,k={claude:['console.anthropic.com','https://console.anthropic.com/settings/keys'],openai:['platform.openai.com','https://platform.openai.com/api-keys'],gemini:['aistudio.google.com','https://aistudio.google.com/apikey']}[p];
+  const h=$('keyhint');h.textContent='Get your key at ';
+  const a=document.createElement('a');a.href=k[1];a.target='_blank';a.rel='noopener';a.textContent=k[0];h.append(a,'. ');
+  if(p==='gemini')h.append('Gemini has a free plan, so it is the easiest way to start.');
+  if(p==='openai')h.append('API credit is separate from a ChatGPT subscription.');
+}
+function drawSlots(){
+  const box=$('slots');box.textContent='';
+  S.slots.forEach(s=>{
+    const r=document.createElement('div');r.className='slot';
+    const t=document.createElement('input');t.type='time';t.value=s.t;t.setAttribute('aria-label','Time');
+    t.onchange=()=>{s.t=t.value;delete S.day.done[s.id];save();upd()};
+    const m=document.createElement('textarea');m.value=s.m;m.maxLength=300;m.placeholder='What should it say?';m.setAttribute('aria-label','What should it say?');
+    m.oninput=()=>{s.m=m.value;save()};
+    const x=document.createElement('button');x.type='button';x.textContent='\u00d7';x.setAttribute('aria-label','Remove this time');
+    x.onclick=()=>{S.slots=S.slots.filter(q=>q!==s);save();drawSlots();upd()};
+    r.append(t,m,x);box.append(r);
+  });
+  $('add').disabled=S.slots.length>=MAX;
+  $('add').textContent=S.slots.length>=MAX?'3 of 3 times added':'Add a time ('+S.slots.length+' of 3)';
+}
+function upd(){
+  roll();
+  $('toggle').textContent=S.running?'Pause':'Start';
+  $('pill').className='pill'+(S.running?' live':'');$('pilltxt').textContent=S.running?'Live':'Paused';
+  $('used').textContent='Today: '+S.day.n+' of '+MAX+' texts used';
+  let nx='';
+  if(S.running){
+    const now=new Date(),mins=now.getHours()*60+now.getMinutes();
+    const up=S.slots.filter(s=>valid(s.t)&&!S.day.done[s.id]&&toM(s.t)>mins).sort((a,b)=>toM(a.t)-toM(b.t))[0];
+    nx=up?'Next text at '+fmt(up.t):'No more texts today';
+  }
+  $('next').textContent=nx;
+}
+function render(extra){
+  const log=$('log');log.textContent='';
+  if(!S.chat.length&&!extra){
+    const h=document.createElement('div');h.className='hero';
+    h.innerHTML='<h3>It texts<br>you first.</h3><ol><li>Add your key in Setup</li><li>Choose up to 3 times a day</li><li>Press Start</li></ol>';
+    log.append(h);return;
+  }
+  for(const m of S.chat){
+    const d=document.createElement('div');d.className='msg '+m.role;d.textContent=m.text;
+    const t=document.createElement('small');t.textContent=new Date(m.at).toLocaleTimeString([],{hour:'numeric',minute:'2-digit'});
+    d.append(t);log.append(d);
+  }
+  if(extra){const d=document.createElement('div');d.className='msg assistant typing';d.textContent='Writing\u2026';log.append(d)}
+  log.scrollTop=log.scrollHeight;
+}
+function build(topic){
+  const m=S.chat.slice(-30).map(x=>({role:x.role,content:x.text}));
+  if(topic!==null){
+    const now=new Date().toLocaleTimeString([],{hour:'numeric',minute:'2-digit'});
+    m.push({role:'user',content:'[It is '+now+'. Start a conversation with me now about: '+(topic||'checking in on me')+'. Reply with only the message.]'});
+  }
+  const out=[];
+  for(const x of m){const l=out[out.length-1];if(l&&l.role===x.role)l.content+='\n'+x.content;else out.push({...x})}
+  if(!out.length||out[0].role!=='user')out.unshift({role:'user',content:'[Conversation start]'});
+  return out;
+}
+async function ask(msgs){
+  const sys='You are texting the user first, like a friend would. They asked you to start chats at times they set, about what they wrote. Say what they asked for in your own words. Keep it short and natural, plain text only. Never mention timers, prompts or being an AI unless asked.';
+  let r;
+  try{
+    if(S.provider==='claude'){
+      r=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',
+        headers:{'content-type':'application/json','x-api-key':S.key,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
+        body:JSON.stringify({model:S.model,max_tokens:300,system:sys,messages:msgs})});
+    }else if(S.provider==='gemini'){
+      const body={systemInstruction:{parts:[{text:sys}]},contents:msgs.map(x=>({role:x.role==='assistant'?'model':'user',parts:[{text:x.content}]})),generationConfig:{maxOutputTokens:1024}};
+      if(/^gemini-2\.5-flash/.test(S.model))body.generationConfig.thinkingConfig={thinkingBudget:0};
+      r=await fetch('https://generativelanguage.googleapis.com/v1beta/models/'+encodeURIComponent(S.model)+':generateContent',{method:'POST',
+        headers:{'content-type':'application/json','x-goog-api-key':S.key},body:JSON.stringify(body)});
+    }else{
+      r=await fetch('https://api.openai.com/v1/chat/completions',{method:'POST',
+        headers:{'content-type':'application/json',authorization:'Bearer '+S.key},
+        body:JSON.stringify({model:S.model,max_completion_tokens:300,messages:[{role:'system',content:sys},...msgs]})});
+    }
+  }catch(e){throw new Error("Couldn't reach "+NAME[S.provider]+'. Check your internet connection.')}
+  let j={};try{j=await r.json()}catch(e){}
+  if(!r.ok){
+    const why=j.error&&j.error.message||'';
+    if(r.status===401||r.status===403||/api key/i.test(why))throw new Error('That API key was rejected. Check it and try again.');
+    if(r.status===404)throw new Error('Model "'+S.model+'" was not found. Pick another model.');
+    if(r.status===429)throw new Error('Rate limit reached or no credit left on your '+NAME[S.provider]+' account.');
+    throw new Error(why||'Request failed ('+r.status+').');
+  }
+  const text=S.provider==='claude'?(j.content||[]).map(c=>c.text||'').join(''):S.provider==='gemini'?((j.candidates&&j.candidates[0]&&j.candidates[0].content&&j.candidates[0].content.parts||[]).map(x=>x.text||'').join('')):((j.choices&&j.choices[0]&&j.choices[0].message.content)||'');
+  return text.trim();
+}
+async function notify(text){
+  if(!document.hidden||!window.Notification||Notification.permission!=='granted')return;
+  try{const reg=navigator.serviceWorker&&await navigator.serviceWorker.getRegistration();
+    if(reg){await reg.showNotification('Rodseo L',{body:text,icon:'assets/icon-192.png'});return}}catch(e){}
+  try{new Notification('Rodseo L',{body:text,icon:'assets/favicon.png'})}catch(e){}
+}
+async function go(topic){
+  if(busy||S.tos!==TV)return;
+  if(!S.key){status('Add your API key in Setup first.',1);return}
+  busy=true;status('');render(true);
+  try{
+    const text=await ask(build(topic));
+    if(text){S.chat.push({role:'assistant',text,at:Date.now()});S.chat=S.chat.slice(-200);save();notify(text)}
+    else status('The AI sent back an empty message. Try again.',1);
+  }catch(e){status(e.message,1)}
+  busy=false;render();
+}
+function tick(){
+  if(S.running&&!busy&&S.key&&S.tos===TV){
+    roll();
+    const now=new Date(),mins=now.getHours()*60+now.getMinutes();
+    for(const s of S.slots){
+      if(S.day.done[s.id]||!valid(s.t))continue;
+      const at=toM(s.t);if(mins<at)continue;
+      S.day.done[s.id]=1;
+      if(mins-at<=180&&S.day.n<MAX){S.day.n++;save();go(s.m);break}
+      save();
+    }
+  }
+  upd();
+}
+
+$('reply').addEventListener('submit',e=>{
+  e.preventDefault();const t=$('text').value.trim();if(!t||busy)return;
+  if(!S.key){status('Add your API key in Setup first.',1);show('setup');return}
+  $('text').value='';S.chat.push({role:'user',text:t,at:Date.now()});save();go(null);
+});
+$('add').onclick=()=>{
+  if(S.slots.length>=MAX)return;
+  const id=Math.max(0,...S.slots.map(s=>s.id))+1;
+  S.slots.push({id,t:'12:00',m:'Check in on me.'});save();drawSlots();upd();
+};
+$('toggle').onclick=()=>{
+  read();
+  if(S.running){S.running=false;save();upd();status('Paused.');return}
+  if(!S.key){status('Add your API key first.',1);return}
+  if(!S.slots.some(s=>valid(s.t))){status('Add at least one time.',1);return}
+  try{if(window.Notification&&Notification.permission==='default')Notification.requestPermission()}catch(e){}
+  S.running=true;save();upd();status('');show('chat');
+};
+$('prov').onchange=()=>{const m=$('model').value.trim();if(!m||Object.values(DEF).includes(m))$('model').value=DEF[$('prov').value];hint();read()};
+$('key').oninput=read;$('model').onchange=read;
+$('eye').onclick=()=>{const k=$('key'),sh=k.type==='password';k.type=sh?'text':'password';$('eye').textContent=sh?'Hide':'Show'};
+$('notif').onclick=async()=>{
+  if(!window.Notification){status('This browser does not support notifications.',1);return}
+  try{const p=await Notification.requestPermission();status(p==='granted'?'Notifications are on.':'Notifications are blocked in your phone settings.',p!=='granted')}catch(e){}
+};
+$('clear').onclick=()=>{if(confirm('Clear the whole chat?')){S.chat=[];save();render()}};
+$('wipe').onclick=()=>{if(confirm('Remove your API key from this phone?')){S.key='';S.running=false;$('key').value='';save();upd();status('Key removed.')}};
+$('t-chat').onclick=()=>show('chat');$('t-setup').onclick=()=>show('setup');
+function tos(first){$('tos').hidden=false;$('tosact').hidden=!first;$('tosclose').hidden=first;$('agree').checked=false;$('ok').disabled=true}
+$('agree').onchange=()=>{$('ok').disabled=!$('agree').checked};
+$('ok').onclick=()=>{S.tos=TV;save();$('tos').hidden=true};
+$('tosclose').onclick=()=>{$('tos').hidden=true};
+$('terms').onclick=()=>tos(false);
+
+$('prov').value=S.provider;$('key').value=S.key;$('model').value=S.model||DEF[S.provider];
+hint();drawSlots();render();upd();show(S.key?'chat':'setup');
+if(S.tos!==TV)tos(true);
+if('serviceWorker' in navigator&&/^https?:$/.test(location.protocol))navigator.serviceWorker.register('sw.js').catch(()=>{});
+setInterval(tick,1000);
+</script>
+</body>
+</html>
