@@ -24,6 +24,7 @@ header{display:flex;align-items:center;gap:10px;padding:12px 16px}
 .dot{width:8px;height:8px;border-radius:50%;background:var(--mute)}
 .live{color:var(--ink)}.live .dot{background:var(--acc);box-shadow:0 0 0 4px color-mix(in srgb,var(--acc) 22%,transparent)}
 #status{margin:0;padding:0 16px 6px;font-size:.88rem;color:var(--mute)}#status:empty{display:none}#status.err{color:var(--err)}
+#nbar{margin:0 16px 8px;padding:10px 12px;background:var(--panel);border:1px solid var(--acc);display:flex;gap:10px;align-items:center;font-size:.88rem}#nbar[hidden]{display:none}#nbar span{flex:1}#nbar button{padding:8px 12px}
 main{flex:1;min-height:0;display:flex;flex-direction:column}
 .view{flex:1;min-height:0;display:flex;flex-direction:column;padding:0 16px}.view[hidden]{display:none}
 #log{flex:1;min-height:0;overflow-y:auto;display:flex;flex-direction:column;gap:8px;padding:4px 0 10px}
@@ -76,6 +77,7 @@ nav button.on{color:var(--ink);border-top-color:var(--acc)}
   <div class="pill" id="pill"><span class="dot"></span><span id="pilltxt">Paused</span></div>
 </header>
 <p id="status" role="status"></p>
+<div id="nbar" hidden><span id="ntxt"></span><button class="main" id="nbtn" type="button">Turn on</button></div>
 <main>
   <section class="view" id="v-chat" aria-label="Chat">
     <div id="log" aria-live="polite"></div>
@@ -107,7 +109,7 @@ nav button.on{color:var(--ink);border-top-color:var(--acc)}
       <p><b>Rodseo L</b> - developed by <b>Yosef Habtamu</b>. &copy; 2026 Yosef Habtamu. All rights reserved.</p>
       <p>Rodseo L uses third-party services. Texts are written by the AI service you choose (Anthropic's Claude, OpenAI's ChatGPT or Google's Gemini) with your own API key, and that provider's terms, pricing and privacy policy apply. Rodseo L is independent software, not affiliated with or endorsed by Anthropic, OpenAI or Google. Claude is a trademark of Anthropic. ChatGPT and OpenAI are trademarks of OpenAI. Gemini is a trademark of Google LLC.</p>
       <p>Your key, times and chat stay on this phone and go only to the AI service you picked. Rodseo L has no servers.</p>
-      <div class="links"><button type="button" id="notif">Turn on notifications</button><button type="button" id="terms">Terms of Service</button><button type="button" id="clear">Clear chat</button><button type="button" id="wipe">Remove my key</button></div>
+      <div class="links"><button type="button" id="notif">Turn on and test notifications</button><button type="button" id="terms">Terms of Service</button><button type="button" id="clear">Clear chat</button><button type="button" id="wipe">Remove my key</button></div>
     </footer>
   </section>
 </main>
@@ -198,7 +200,7 @@ function render(extra){
   log.scrollTop=log.scrollHeight;
 }
 function build(topic){
-  const m=S.chat.slice(-30).map(x=>({role:x.role,content:x.text}));
+  const m=S.chat.filter(x=>!x.local).slice(-30).map(x=>({role:x.role,content:x.text}));
   if(topic!==null){
     const now=new Date().toLocaleTimeString([],{hour:'numeric',minute:'2-digit'});
     m.push({role:'user',content:'[It is '+now+'. Start a conversation with me now about: '+(topic||'checking in on me')+'. Reply with only the message.]'});
@@ -238,11 +240,26 @@ async function ask(msgs){
   const text=S.provider==='claude'?(j.content||[]).map(c=>c.text||'').join(''):S.provider==='gemini'?((j.candidates&&j.candidates[0]&&j.candidates[0].content&&j.candidates[0].content.parts||[]).map(x=>x.text||'').join('')):((j.choices&&j.choices[0]&&j.choices[0].message.content)||'');
   return text.trim();
 }
-async function notify(text){
-  if(!document.hidden||!window.Notification||Notification.permission!=='granted')return;
-  try{const reg=navigator.serviceWorker&&await navigator.serviceWorker.getRegistration();
-    if(reg){await reg.showNotification('Rodseo L',{body:text,icon:'assets/icon-192.png'});return}}catch(e){}
-  try{new Notification('Rodseo L',{body:text,icon:'assets/favicon.png'})}catch(e){}
+async function notify(text,title){
+  if(!window.Notification||Notification.permission!=='granted')return false;
+  const o={body:text,icon:'assets/icon-192.png',badge:'assets/icon-192.png',vibrate:[200,100,200],tag:'rodseo-l',renotify:true};
+  try{
+    if(navigator.serviceWorker){
+      const reg=await Promise.race([navigator.serviceWorker.ready,new Promise(r=>setTimeout(r,3000))]);
+      if(reg&&reg.showNotification){await reg.showNotification(title||'Rodseo L',o);return true}
+    }
+  }catch(e){}
+  try{new Notification(title||'Rodseo L',o);return true}catch(e){}
+  return false;
+}
+function nstate(){
+  const b=$('nbar'),t=$('ntxt'),btn=$('nbtn');
+  if(!window.Notification){t.textContent='This browser cannot show notifications. Open Rodseo L in Chrome and install it.';btn.hidden=true;b.hidden=false;return}
+  const p=Notification.permission;
+  if(p==='granted'){b.hidden=true;return}
+  b.hidden=false;
+  if(p==='denied'){t.textContent='Notifications are blocked. Open your phone Settings, then Apps, then Chrome (or Rodseo L), then Notifications, and turn them on.';btn.hidden=true}
+  else{t.textContent='Turn on notifications so Rodseo L can alert you when your AI texts you.';btn.hidden=false}
 }
 async function go(topic){
   if(busy||S.tos!==TV)return;
@@ -285,7 +302,10 @@ $('toggle').onclick=()=>{
   if(S.running){S.running=false;save();upd();status('Paused.');return}
   if(!S.key){status('Add your API key first.',1);return}
   if(!S.slots.some(s=>valid(s.t))){status('Add at least one time.',1);return}
-  try{if(window.Notification&&Notification.permission==='default')Notification.requestPermission()}catch(e){}
+  try{if(window.Notification&&Notification.permission==='default')Notification.requestPermission().then(nstate)}catch(e){}
+  if((!window.Notification||Notification.permission!=='granted')&&!S.chat.some(x=>x.local)){
+    S.chat.push({role:'assistant',local:true,at:Date.now(),text:'Hi! Turn on notifications so I can alert you when I text you. Tap the Turn on button at the top, and allow notifications when your phone asks.'});save();render();
+  }
   S.running=true;save();upd();status('');show('chat');
 };
 $('prov').onchange=()=>{const m=$('model').value.trim();if(!m||Object.values(DEF).includes(m))$('model').value=DEF[$('prov').value];hint();read()};
@@ -293,8 +313,13 @@ $('key').oninput=read;$('model').onchange=read;
 $('eye').onclick=()=>{const k=$('key'),sh=k.type==='password';k.type=sh?'text':'password';$('eye').textContent=sh?'Hide':'Show'};
 $('notif').onclick=async()=>{
   if(!window.Notification){status('This browser does not support notifications.',1);return}
-  try{const p=await Notification.requestPermission();status(p==='granted'?'Notifications are on.':'Notifications are blocked in your phone settings.',p!=='granted')}catch(e){}
+  try{if(Notification.permission==='default')await Notification.requestPermission()}catch(e){}
+  nstate();
+  if(Notification.permission==='granted'){const ok=await notify('This is a test notification from Rodseo L.');status(ok?'Test sent. If you did not see it, check your phone notification settings.':'Could not show a notification.',!ok)}
+  else status('Notifications are blocked. Turn them on in your phone settings.',1);
 };
+$('nbtn').onclick=async()=>{try{await Notification.requestPermission()}catch(e){}nstate();if(Notification.permission==='granted')notify('Notifications are on. This is a test.')};
+document.addEventListener('visibilitychange',nstate);
 $('clear').onclick=()=>{if(confirm('Clear the whole chat?')){S.chat=[];save();render()}};
 $('wipe').onclick=()=>{if(confirm('Remove your API key from this phone?')){S.key='';S.running=false;$('key').value='';save();upd();status('Key removed.')}};
 $('t-chat').onclick=()=>show('chat');$('t-setup').onclick=()=>show('setup');
@@ -305,7 +330,7 @@ $('tosclose').onclick=()=>{$('tos').hidden=true};
 $('terms').onclick=()=>tos(false);
 
 $('prov').value=S.provider;$('key').value=S.key;$('model').value=S.model||DEF[S.provider];
-hint();drawSlots();render();upd();show(S.key?'chat':'setup');
+hint();drawSlots();render();upd();nstate();show(S.key?'chat':'setup');
 if(S.tos!==TV)tos(true);
 if('serviceWorker' in navigator&&/^https?:$/.test(location.protocol))navigator.serviceWorker.register('sw.js').catch(()=>{});
 setInterval(tick,1000);
